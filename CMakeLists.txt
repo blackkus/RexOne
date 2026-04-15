@@ -40,6 +40,7 @@ set(SRCS
     src/llama_backend.cpp
     src/vector_store.cpp
     src/persistence.cpp
+    src/planner.cpp
 )
 
 # Optional: SQLite linking

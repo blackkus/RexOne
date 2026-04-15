@@ -20,16 +20,18 @@ RexOne/
 │   ├── model_interface.h   # LLM inference interface
 │   ├── tokenizer.h         # Token counting and encoding
 │   ├── llama_backend.h     # Optional llama.cpp integration
-│   └── vector_store.h      # Vector (embedding) storage interface
+│   ├── vector_store.h      # Vector (embedding) storage interface
+│   └── planner.h           # Autonomous decision-making with safety constraints
 ├── src/                    # Implementation
-│   ├── main.cpp            # Interactive REPL demo
-│   ├── orchestrator.cpp    # Orchestrator logic
+│   ├── main.cpp            # Interactive REPL demo with planner commands
+│   ├── orchestrator.cpp    # Orchestrator logic with planner integration
 │   ├── memory_manager.cpp  # Memory management implementation
 │   ├── model_interface.cpp # Model inference (stubs + hooks)
 │   ├── tokenizer.cpp       # Tokenizer implementation
 │   ├── llama_backend.cpp   # Optional llama backend
 │   ├── vector_store.cpp    # Vector store implementation
-│   └── persistence.cpp     # Optional SQLite persistence
+│   ├── persistence.cpp     # Optional SQLite persistence
+│   └── planner.cpp         # Autonomous planner implementation
 └── build/                  # Build output (generated)
 ```
 
@@ -108,6 +110,42 @@ You> quit
 - **Deterministic Embeddings**: Uses hash-based embeddings (currently 8-dimensional) for semantic similarity
   - Ready to integrate real embedding models (BERT, OpenAI, etc.)
 
+### Persistence & Durable Memory
+- **Persistence class**: SQLite-backed memory storage (optional via `USE_SQLITE` flag)
+  - Schema: memories table with `id`, `text`, `embedding`, `timestamp`, `importance`
+  - Serialize embeddings as comma-separated floats for storage
+  - Full CRUD: save, load, search, delete old memories
+  - Graceful degradation: works without SQLite (stub mode) for demo portability
+- **MemoryManager integration**:
+  - `load_from_persistence()` — load all memories on startup
+  - `save_to_persistence(text, embedding)` — async-ready method to persist Q&A pairs
+  - Enables cross-session memory continuity
+- **Cleanup**: Automatic removal of old memories (keep_since parameter) to prevent unbounded growth
+- **Timestamps**: Each memory record includes Unix timestamp for temporal queries
+
+### Autonomous Decision-Making & Safety (Planner)
+- **Planner class**: Evaluates candidate actions and selects best option respecting safety constraints
+  - **Utility function**: `utility = (benefit / cost) * (1 - risk * 0.5)` — balances reward vs resource usage while penalizing risky actions
+  - **Safety constraints**: Symbolic rules that can be added/removed dynamically
+    - `safety_max_risk(threshold)` — reject actions exceeding risk threshold
+    - `safety_preserve_recent()` — prevent deletion of recent memories
+    - `safety_require_approval()` — flag high-risk actions for human review
+  - **Audit logging**: Every decision is timestamped and logged with reasoning for explainability
+- **Integration with Orchestrator**:
+  - `set_autonomous_mode(bool)` — enable periodic autonomous memory management decisions
+  - `make_decision(candidates)` — evaluate action candidates and return best plan
+  - `get_decisions_log()` — retrieve audit trail for transparency
+- **REPL Commands** (demo):
+  - `autonomous on/off` — toggle autonomous mode
+  - `decisions` — display decision audit log
+  - `plan` — show planner info
+  - `help` — show all commands
+- **Current Autonomy Candidates** (extensible):
+  - `cleanup_old_memories` — remove data older than 30 days (cost 0.1, risk 0.1, benefit 0.7)
+  - `compress_context` — summarize long-term memories (cost 0.3, risk 0.2, benefit 0.5)
+  - `export_backup` — encrypted backup (cost 0.15, risk 0.0, benefit 0.8)
+  - `idle` — continue normal operation (cost 0.0, risk 0.0, benefit 0.0)
+
 ### Architecture: Orchestrator Pipeline
 ```
 Input 
@@ -116,7 +154,7 @@ Input
   → Retrieve Similar Facts from Long-term (RAG)
   → Compose Prompt (system instruction + history + retrieved facts + user input)
   → Model Generate Response
-  → Embed & Store Q&A Pair to Long-term
+  → Embed & Store Q&A Pair to Long-term & Persistence
   → Output
 ```
 
@@ -135,7 +173,7 @@ Input
 4. **VectorStore**: Currently uses cosine similarity O(N); upgrade to hnswlib or FAISS for O(log N) search
 5. **Embeddings**: Current hash-based embeddings are for demo; integrate real models (BERT, OpenAI, etc.)
 6. **Persistence**: Enable SQLite (`-DUSE_SQLITE=ON`) for durable memory across sessions
-7. **Planner**: Add symbolic constraints and utility functions for autonomous decision-making
+7. **Planner**: Extend action candidates; add RL-based learning from outcomes; implement threat detection
 
 ## Next Steps (Implementation Roadmap)
 
@@ -152,15 +190,21 @@ Input
    - 🔄 Implement chunking strategy for long documents
    - 🔄 Add importance scoring and TTL-based pruning
 
-3. **Persistence** (Phase 3)
-   - SQLite storage for memories across sessions
-   - Async batch updates to avoid blocking inference
-   - Export/import for cloud backup
+3. **Persistence** (Phase 3 — ✅ IMPLEMENTED)
+   - ✅ SQLite storage for memories across sessions
+   - ✅ Serialize embeddings and store with timestamps
+   - ✅ Load/save/cleanup APIs ready
+   - 🔄 Async batch updates (thread pool) to avoid blocking inference
+   - 🔄 Export/import for cloud backup
 
-4. **Autonomy & Safety** (Phase 4)
-   - Planner with cost/risk evaluation
-   - Human-in-the-loop for critical actions
-   - Audit logs and explainability
+4. **Autonomy & Safety** (Phase 4 — ✅ IMPLEMENTED)
+   - ✅ Planner class with cost/risk/benefit evaluation
+   - ✅ Symbolic safety constraints with pre-defined rules
+   - ✅ Audit logging for explainability and transparency
+   - ✅ REPL commands for autonomous mode toggling and decision inspection
+   - ✅ Memory management action candidates (cleanup, compress, backup, idle)
+   - 🔄 RL-based action learning from outcomes
+   - 🔄 Extended autonomy candidates (resource optimization, threat detection)
 
 ## Building on Windows with VS Code
 
