@@ -85,18 +85,28 @@ RexOne> RexOne (demo): J'ai reçu votre message. (demo généré)
 You> quit
 ```
 
-The demo currently:
-- Maintains a sliding window of recent conversation history
-- Detects questions (contains `?`) and tailors responses
-- Generates simple deterministic responses (stubs for real model integration)
-- Uses basic embeddings for semantic similarity
+## Current Features
 
-## Architecture Overview
+### Multi-tier Memory & RAG
+- **Short-term**: Sliding window (2048 token budget) of recent conversation history
+- **Long-term (RAG)**: VectorStore with semantic search using cosine similarity
+  - All Q&A pairs are embedded and stored in long-term memory
+  - When user queries, relevant past interactions are retrieved and included in prompt context
+  - Enables the agent to "remember" and reference previous discussions
+- **Question Detection**: Detects questions (contains `?`) and tailors responses
+- **Deterministic Embeddings**: Uses hash-based embeddings (currently 8-dimensional) for semantic similarity
+  - Ready to integrate real embedding models (BERT, OpenAI, etc.)
 
-### Orchestrator Pipeline
+### Architecture: Orchestrator Pipeline
 ```
-Input → Normalize → Memory Append → Embed Query → Retrieve Facts
-     → Compose Prompt → Model Generate → Post-process → Update Memory → Output
+Input 
+  → Append to Short-term History
+  → Embed Query  
+  → Retrieve Similar Facts from Long-term (RAG)
+  → Compose Prompt (system instruction + history + retrieved facts + user input)
+  → Model Generate Response
+  → Embed & Store Q&A Pair to Long-term
+  → Output
 ```
 
 ### Memory Layers
@@ -107,7 +117,8 @@ Input → Normalize → Memory Append → Embed Query → Retrieve Facts
 ### Extensibility Points
 1. **ModelInterface**: Replace with real LLM (llama.cpp, ONNX, FasterTransformer, etc.)
 2. **Tokenizer**: Integrate HuggingFace tokenizers (BPE) for accurate token counting
-3. **VectorStore**: Connect to hnswlib or FAISS for efficient nearest-neighbor search
+3. **VectorStore**: Currently uses cosine similarity; upgrade to hnswlib or FAISS for O(log N) search on large corpora
+4. **Embeddings**: Current hash-based embeddings are for demo; integrate real models (BERT, OpenAI, etc.)
 4. **Persistence**: Enable SQLite for durable memory across sessions
 5. **Planner**: Add symbolic constraints and utility functions for autonomous decision-making
 
@@ -155,10 +166,12 @@ This project is a demonstration/educational prototype.
 
 ## Notes
 
-- Demo mode uses simple heuristic inference; real deployment requires actual LLM backend integration
-- Tokenizer is whitespace-based stub; production should use BPE or SentencePiece
-- Vector store uses naive cosine similarity; production recommendation: hnswlib or FAISS
-- Persistence is stubbed; enable SQLite for durability
+- **LLM**: Demo mode uses simple heuristic inference; real deployment requires actual LLM backend integration
+- **Embeddings**: Deterministic 8D hash-based embeddings for demo; production should use real models (BERT, OpenAI, Hugging Face)
+- **Vector Search**: Currently cosine similarity O(N) lookup; production recommendation: hnswlib or FAISS for O(log N)
+- **Tokenizer**: Whitespace-based stub; production should use BPE (SentencePiece, HuggingFace tokenizers)
+- **Persistence**: SQLite integration available via `USE_SQLITE` flag for durable memory across sessions
+- **RAG Status**: ✅ Functional — Q&A pairs are embedded and retrieved; ready for scaled deployment with better embedding models
 
 ---
 
