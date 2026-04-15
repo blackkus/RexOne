@@ -5,11 +5,30 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+include(FetchContent)
+
 option(USE_LLAMA "Enable llama.cpp backend" OFF)
-option(USE_HNSW "Enable hnswlib vector store" OFF)
+option(USE_HNSW "Enable hnswlib vector store (header-only)" ON)
 option(USE_SQLITE "Enable SQLite persistence" OFF)
 
 include_directories(${PROJECT_SOURCE_DIR}/include)
+
+# Fetch hnswlib (header-only, lightweight)
+if(USE_HNSW)
+    message(STATUS "Fetching hnswlib for vector similarity search...")
+    FetchContent_Declare(
+        hnswlib
+        GIT_REPOSITORY https://github.com/nmslib/hnswlib.git
+        GIT_TAG master
+        SOURCE_SUBDIR cpp
+    )
+    FetchContent_GetProperties(hnswlib)
+    if(NOT hnswlib_POPULATED)
+        FetchContent_Populate(hnswlib)
+    endif()
+    include_directories(${hnswlib_SOURCE_DIR})
+    add_definitions(-DUSE_HNSW)
+endif()
 
 # Base sources
 set(SRCS

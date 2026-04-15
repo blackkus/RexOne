@@ -1,11 +1,15 @@
 #include "memory_manager.h"
+#include "vector_store.h"
 
 #include <algorithm>
 #include <cctype>
 
-MemoryManager::MemoryManager(const std::string &dbpath) {
-    (void)dbpath; // stub: no persistent DB in demo
+MemoryManager::MemoryManager(const std::string &dbpath)
+    : vector_store_(std::make_unique<VectorStore>(8, 10000)) {
+    (void)dbpath; // stub: no persistent DB in demo, vector store is in-memory
 }
+
+MemoryManager::~MemoryManager() = default;
 
 void MemoryManager::append_short(const std::string &utter) {
     std::lock_guard<std::mutex> lk(mu_);
@@ -16,21 +20,26 @@ void MemoryManager::append_short(const std::string &utter) {
     }
 }
 
-std::vector<std::string> MemoryManager::retrieve_semantic(const std::vector<float> & /*query*/, int k) {
+std::vector<std::string> MemoryManager::retrieve_semantic(const std::vector<float> &query, int k) {
     std::lock_guard<std::mutex> lk(mu_);
     std::vector<std::string> out;
-    // naive: return the last k items from short_history_
-    for (int i = static_cast<int>(short_history_.size()) - 1; i >= 0 && (int)out.size() < k; --i) {
-        out.push_back(short_history_[i]);
+    
+    if (!vector_store_) return out;
+    
+    auto entries = vector_store_->search(query, k);
+    for (const auto &entry : entries) {
+        out.push_back(entry.text);
     }
-    std::reverse(out.begin(), out.end());
     return out;
 }
 
-void MemoryManager::add_longterm(const std::string &text) {
+void MemoryManager::add_longterm(const std::string &text, const std::vector<float> &embedding) {
     std::lock_guard<std::mutex> lk(mu_);
-    // For demo, append to short history as well
-    short_history_.push_back(std::string("[LONG] ") + text);
+    if (!vector_store_) return;
+    
+    // Generate ID based on vector store size
+    std::string id = "mem_" + std::to_string(vector_store_->size());
+    vector_store_->add(id, text, embedding);
 }
 
 int MemoryManager::total_tokens_estimate() {
@@ -40,7 +49,9 @@ int MemoryManager::total_tokens_estimate() {
         int words = 0;
         bool inw = false;
         for (char c : s) {
-            if (std::isspace(static_cast<unsigned char>(c))) { if (inw) { words++; inw = false; } }
+            if (std::isspace(static_cast<unsigned char>(c))) { 
+                if (inw) { words++; inw = false; } 
+            }
             else inw = true;
         }
         if (inw) words++;
@@ -53,4 +64,8 @@ std::vector<std::string> MemoryManager::get_recent_history() {
     std::lock_guard<std::mutex> lk(mu_);
     std::vector<std::string> out(short_history_.begin(), short_history_.end());
     return out;
+}
+
+VectorStore* MemoryManager::get_vector_store() const {
+    return vector_store_.get();
 }

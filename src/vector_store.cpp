@@ -1,45 +1,76 @@
-#include <vector>
-#include <string>
-#include <algorithm>
+#include "vector_store.h"
+
 #include <cmath>
+#include <algorithm>
 
-struct VS_Entry {
-    std::string id;
-    std::string text;
-    std::vector<float> emb;
-};
-
-static std::vector<VS_Entry> vs_db;
-
-void vs_add(const std::string &id, const std::string &text, const std::vector<float> &emb) {
-    vs_db.push_back(VS_Entry{id, text, emb});
+VectorStore::VectorStore(int dimension, int maxElements)
+    : dimension_(dimension), nextLabel_(0) {
+    // hnswlib integration can be added here in future
+    // For now, using efficient naive cosine similarity
 }
 
-static float dot(const std::vector<float> &a, const std::vector<float> &b) {
-    float s = 0.0f;
-    size_t n = std::min(a.size(), b.size());
-    for (size_t i = 0; i < n; ++i) s += a[i]*b[i];
-    return s;
-}
+VectorStore::~VectorStore() = default;
 
-static float norm(const std::vector<float> &a) {
-    float s = 0.0f;
-    for (float v : a) s += v*v;
-    return std::sqrt(s);
-}
-
-std::vector<std::string> vs_search(const std::vector<float> &q, int k) {
-    struct Sc { float score; int idx; };
-    std::vector<Sc> scores;
-    for (size_t i = 0; i < vs_db.size(); ++i) {
-        float denom = norm(vs_db[i].emb) * norm(q);
-        float sc = (denom > 1e-6f) ? dot(vs_db[i].emb, q) / denom : 0.0f;
-        scores.push_back({sc, (int)i});
+void VectorStore::add(const std::string &id, const std::string &text, const std::vector<float> &embedding) {
+    if ((int)embedding.size() != dimension_) {
+        return; // Dimension mismatch
     }
-    std::sort(scores.begin(), scores.end(), [](const Sc &a, const Sc &b){ return a.score > b.score; });
-    std::vector<std::string> out;
+    
+    int label = nextLabel_++;
+    entries_[label] = VectorStoreEntry{id, text, embedding};
+}
+
+std::vector<VectorStoreEntry> VectorStore::search(const std::vector<float> &query, int k) {
+    std::vector<VectorStoreEntry> result;
+
+    // Cosine similarity search (efficient for small memory footprints)
+    auto dot = [](const std::vector<float> &a, const std::vector<float> &b) {
+        float s = 0.0f;
+        size_t n = std::min(a.size(), b.size());
+        for (size_t i = 0; i < n; ++i) s += a[i] * b[i];
+        return s;
+    };
+
+    auto norm = [](const std::vector<float> &a) {
+        float s = 0.0f;
+        for (float v : a) s += v * v;
+        return std::sqrt(s);
+    };
+
+    struct Scored {
+        int label;
+        float score;
+    };
+
+    std::vector<Scored> scores;
+    float qnorm = norm(query);
+    
+    for (const auto &[label, entry] : entries_) {
+        float enorm = norm(entry.embedding);
+        float denom = qnorm * enorm;
+        float sc = (denom > 1e-6f) ? dot(query, entry.embedding) / denom : 0.0f;
+        scores.push_back({label, sc});
+    }
+
+    // Sort by score descending
+    std::sort(scores.begin(), scores.end(), 
+              [](const Scored &a, const Scored &b) { return a.score > b.score; });
+
+    // Return top k results
     for (int i = 0; i < k && i < (int)scores.size(); ++i) {
-        out.push_back(vs_db[scores[i].idx].text);
+        if (entries_.count(scores[i].label)) {
+            result.push_back(entries_[scores[i].label]);
+        }
     }
-    return out;
+
+    return result;
+}
+
+size_t VectorStore::size() const {
+    return entries_.size();
+}
+
+void VectorStore::clear() {
+    entries_.clear();
+    nextLabel_ = 0;
 }
