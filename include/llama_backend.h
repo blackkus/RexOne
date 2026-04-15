@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <functional>
+#include <memory>
 
 // Callback for streaming tokens during generation
 using TokenCallback = std::function<void(const std::string &token)>;

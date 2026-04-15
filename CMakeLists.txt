@@ -30,6 +30,24 @@ if(USE_HNSW)
     add_definitions(-DUSE_HNSW)
 endif()
 
+if(USE_LLAMA)
+    message(STATUS "Fetching llama.cpp for GGUF model support...")
+    set(LLAMA_BUILD_COMMON OFF CACHE BOOL "" FORCE)
+    set(LLAMA_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(LLAMA_BUILD_TOOLS OFF CACHE BOOL "" FORCE)
+    set(LLAMA_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(LLAMA_BUILD_SERVER OFF CACHE BOOL "" FORCE)
+    set(LLAMA_BUILD_WEBUI OFF CACHE BOOL "" FORCE)
+
+    FetchContent_Declare(
+        llama_cpp
+        GIT_REPOSITORY https://github.com/ggerganov/llama.cpp.git
+        GIT_TAG master
+    )
+    FetchContent_MakeAvailable(llama_cpp)
+    add_definitions(-DUSE_LLAMA)
+endif()
+
 # Base sources
 set(SRCS
     src/main.cpp
@@ -61,6 +79,11 @@ if(USE_SQLITE)
         target_include_directories(rexone PRIVATE ${SQLite3_INCLUDE_DIRS})
         target_link_libraries(rexone PRIVATE ${SQLite3_LIBRARIES})
     endif()
+endif()
+
+if(USE_LLAMA)
+    target_link_libraries(rexone PRIVATE llama)
+    target_include_directories(rexone PRIVATE ${llama_cpp_SOURCE_DIR}/include)
 endif()
 
 message(STATUS "Build options: USE_LLAMA=${USE_LLAMA}, USE_HNSW=${USE_HNSW}, USE_SQLITE=${USE_SQLITE}")
