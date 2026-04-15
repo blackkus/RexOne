@@ -7,6 +7,7 @@
 #include <memory>
 
 class VectorStore;
+class Persistence;
 
 class MemoryManager {
 public:
@@ -31,9 +32,15 @@ public:
     // get pointer to vector store (for external management)
     VectorStore* get_vector_store() const;
 
+    // persistence interface
+    Persistence* get_persistence() const;
+    bool load_from_persistence();
+    bool save_to_persistence(const std::string &text, const std::vector<float> &embedding);
+
 private:
     std::deque<std::string> short_history_;
     std::mutex mu_;
     size_t short_window_tokens_ = 2048; // approximate token budget
     std::unique_ptr<VectorStore> vector_store_;
+    std::unique_ptr<Persistence> persistence_;
 };

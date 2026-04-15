@@ -39,11 +39,11 @@ set(SRCS
     src/tokenizer.cpp
     src/llama_backend.cpp
     src/vector_store.cpp
+    src/persistence.cpp
 )
 
-# Optional: persistence
+# Optional: SQLite linking
 if(USE_SQLITE)
-    list(APPEND SRCS src/persistence.cpp)
     add_definitions(-DUSE_SQLITE)
 endif()
 

@@ -1,12 +1,18 @@
 #include "memory_manager.h"
 #include "vector_store.h"
+#include "persistence.h"
 
 #include <algorithm>
 #include <cctype>
+#include <chrono>
 
 MemoryManager::MemoryManager(const std::string &dbpath)
-    : vector_store_(std::make_unique<VectorStore>(8, 10000)) {
-    (void)dbpath; // stub: no persistent DB in demo, vector store is in-memory
+    : vector_store_(std::make_unique<VectorStore>(8, 10000)),
+      persistence_(std::make_unique<Persistence>(dbpath)) {
+    // Try to open persistence and load memories
+    if (persistence_->open()) {
+        load_from_persistence();
+    }
 }
 
 MemoryManager::~MemoryManager() = default;
@@ -68,4 +74,38 @@ std::vector<std::string> MemoryManager::get_recent_history() {
 
 VectorStore* MemoryManager::get_vector_store() const {
     return vector_store_.get();
+}
+
+Persistence* MemoryManager::get_persistence() const {
+    return persistence_.get();
+}
+
+bool MemoryManager::load_from_persistence() {
+    if (!persistence_ || !persistence_->is_connected()) {
+        return false;
+    }
+
+    auto records = persistence_->load_all_memories();
+    for (const auto &rec : records) {
+        if (vector_store_) {
+            vector_store_->add(rec.id, rec.text, rec.embedding);
+        }
+    }
+    return true;
+}
+
+bool MemoryManager::save_to_persistence(const std::string &text, const std::vector<float> &embedding) {
+    if (!persistence_ || !persistence_->is_connected()) {
+        return false;
+    }
+
+    // Create a record with current timestamp
+    MemoryRecord record;
+    record.id = "mem_" + std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
+    record.text = text;
+    record.embedding = embedding;
+    record.timestamp = std::chrono::system_clock::now().time_since_epoch().count() / 1000000000LL; // Unix timestamp
+    record.importance = 1.0f; // Default importance
+
+    return persistence_->save_memory(record);
 }
