@@ -188,7 +188,7 @@ Input
    - Just need to link actual llama.cpp library and call underlying inference
 2. **ModelInterface**: Streaming generation interface is in place; integrate embedding models (BERT, etc.)
 3. **Tokenizer**: Integrate HuggingFace tokenizers (BPE) for accurate token counting
-4. **VectorStore**: Currently uses cosine similarity O(N); upgrade to hnswlib or FAISS for O(log N) search
+4. **VectorStore**: HNSW-backed search available when `USE_HNSW=ON` for faster approximate nearest neighbor retrieval; fallback is still cosine similarity O(N)
 5. **Embeddings**: Current hash-based embeddings are for demo; integrate real models (BERT, OpenAI, etc.)
 6. **Persistence**: Enable SQLite (`-DUSE_SQLITE=ON`) for durable memory across sessions
 7. **Planner**: Extend action candidates; add RL-based learning from outcomes; implement threat detection
