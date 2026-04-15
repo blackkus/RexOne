@@ -5,6 +5,8 @@
 #include <vector>
 #include <functional>
 #include <cmath>
+#include <cctype>
+#include <algorithm>
 
 ModelInterface::ModelInterface() {
     // Initialize global llama backend if available
@@ -40,22 +42,69 @@ std::string ModelInterface::generate_streaming(const std::string &prompt, int ma
 }
 
 std::vector<float> ModelInterface::embed(const std::string &text) {
-    const int D = 8;
+    const int D = 128;
     std::vector<float> v(D, 0.0f);
-    std::hash<std::string> h;
     if (text.empty()) {
         v[0] = 1.0f;
-    } else {
-        for (size_t i = 0; i < text.size(); ++i) {
-            // use small substrings to mix
-            std::string s = text.substr(i, 3);
-            size_t val = h(s);
-            v[i % D] += static_cast<float>((val % 1000)) / 1000.0f;
+        return v;
+    }
+
+    std::string normalized;
+    normalized.reserve(text.size());
+    for (char ch : text) {
+        if (std::isalnum(static_cast<unsigned char>(ch))) {
+            normalized.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(ch))));
+        } else {
+            normalized.push_back(' ');
         }
     }
-    float norm = 1e-6f;
-    for (float x : v) norm += x*x;
+
+    auto add_token = [&](const std::string &token, float weight) {
+        size_t hash = std::hash<std::string>{}(token);
+        int index = static_cast<int>(hash % D);
+        v[index] += weight;
+    };
+
+    std::string token;
+    for (char ch : normalized) {
+        if (ch == ' ') {
+            if (!token.empty()) {
+                add_token(token, 1.0f + std::log1p(static_cast<float>(token.size())));
+                if (token.size() >= 3) {
+                    for (size_t j = 0; j + 3 <= token.size(); ++j) {
+                        add_token(token.substr(j, 3), 0.5f);
+                    }
+                }
+                token.clear();
+            }
+        } else {
+            token.push_back(ch);
+        }
+    }
+    if (!token.empty()) {
+        add_token(token, 1.0f + std::log1p(static_cast<float>(token.size())));
+        if (token.size() >= 3) {
+            for (size_t j = 0; j + 3 <= token.size(); ++j) {
+                add_token(token.substr(j, 3), 0.5f);
+            }
+        }
+    }
+
+    // Add lightweight character-level signal
+    for (size_t i = 0; i < normalized.size(); ++i) {
+        char ch = normalized[i];
+        if (ch == ' ') continue;
+        std::string single(1, ch);
+        add_token(single, 0.15f);
+    }
+
+    float norm = 1e-9f;
+    for (float x : v) {
+        norm += x * x;
+    }
     norm = std::sqrt(norm);
-    for (float &x : v) x /= norm;
+    for (float &x : v) {
+        x /= norm;
+    }
     return v;
 }

@@ -7,7 +7,7 @@
 #include <chrono>
 
 MemoryManager::MemoryManager(const std::string &dbpath)
-    : vector_store_(std::make_unique<VectorStore>(8, 10000)),
+    : vector_store_(std::make_unique<VectorStore>(128, 10000)),
       persistence_(std::make_unique<Persistence>(dbpath)) {
     // Try to open persistence and load memories
     if (persistence_->open()) {

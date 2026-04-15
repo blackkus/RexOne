@@ -125,7 +125,7 @@ You> quit
   - When user queries, relevant past interactions are retrieved and included in prompt context
   - Enables the agent to "remember" and reference previous discussions
 - **Question Detection**: Detects questions (contains `?`) and tailors responses
-- **Deterministic Embeddings**: Uses hash-based embeddings (currently 8-dimensional) for semantic similarity
+- **Deterministic Embeddings**: Uses richer hash-based embeddings (currently 128-dimensional, token/ngram weighted) for semantic similarity
   - Ready to integrate real embedding models (BERT, OpenAI, etc.)
 
 ### Persistence & Durable Memory
@@ -189,7 +189,7 @@ Input
 2. **ModelInterface**: Streaming generation interface is in place; integrate embedding models (BERT, etc.)
 3. **Tokenizer**: Integrate HuggingFace tokenizers (BPE) for accurate token counting
 4. **VectorStore**: HNSW-backed search available when `USE_HNSW=ON` for faster approximate nearest neighbor retrieval; fallback is still cosine similarity O(N)
-5. **Embeddings**: Current hash-based embeddings are for demo; integrate real models (BERT, OpenAI, etc.)
+5. **Embeddings**: Current hash-based embeddings are now 128-dimensional with token/ngram weighting; integrate real models (BERT, OpenAI, etc.) for production
 6. **Persistence**: Enable SQLite (`-DUSE_SQLITE=ON`) for durable memory across sessions
 7. **Planner**: Extend action candidates; add RL-based learning from outcomes; implement threat detection
 
@@ -251,7 +251,7 @@ This project is a demonstration/educational prototype.
   - Ready for real llama.cpp integration: just call `init_global_llama("model.gguf")`
   - When USE_LLAMA is defined, code paths prepared for actual inference
 - **Streaming Tokens**: ✅ Functional in demo; supports both blocking and callback-based generation
-- **Embeddings**: Currently hash-based (8D); production should use real models (BERT, Sentence-Transformers)
+- **Embeddings**: Currently hash-based (128D with token/ngram weighting); production should use real models (BERT, Sentence-Transformers)
 - **Vector Search**: Cosine similarity O(N) working; production → hnswlib or FAISS for O(log N)
 - **RAG Status**: ✅ Full pipeline working — Q&A pairs embedded, stored, and retrieved by semantic similarity
 - **Tokenizer**: Whitespace-based stub; production should use BPE (SentencePiece, HuggingFace tokenizers)
