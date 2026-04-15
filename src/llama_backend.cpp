@@ -49,8 +49,6 @@ public:
         mparams.check_tensors = false;
         mparams.n_gpu_layers = 0;
         mparams.main_gpu = -1;
-        mparams.progress_callback = nullptr;
-        mparams.progress_callback_user_data = nullptr;
         mparams.vocab_only = false;
 
         model_ = llama_model_load_from_file(model_path.c_str(), mparams);
@@ -66,8 +64,6 @@ public:
         cparams.n_threads_batch = 0;
         cparams.embeddings = false;
         cparams.n_seq_max = 1;
-        cparams.progress_callback = nullptr;
-        cparams.progress_callback_user_data = nullptr;
 
         ctx_ = llama_init_from_model(model_, cparams);
         if (!ctx_) {

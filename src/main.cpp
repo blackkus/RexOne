@@ -5,11 +5,12 @@
 #include "orchestrator.h"
 
 int main(int argc, char** argv) {
-    (void)argc; (void)argv;
-    Orchestrator orchestrator("./db");
-    std::cout << "RexOne demo REPL. Type 'quit' to exit.\n";
-    std::cout << "Commands: autonomous [on|off] | decisions | plan | help\n\n";
-    std::string line;
+    try {
+        (void)argc; (void)argv;
+        Orchestrator orchestrator("./db");
+        std::cout << "RexOne demo REPL. Type 'quit' to exit.\n";
+        std::cout << "Commands: autonomous [on|off] | decisions | plan | help\n\n";
+        std::string line;
     while (true) {
         std::cout << "You> ";
         if (!std::getline(std::cin, line)) break;
@@ -74,4 +75,11 @@ int main(int argc, char** argv) {
         std::cout << "RexOne> " << resp << "\n\n";
     }
     return 0;
+    } catch (const std::exception& e) {
+        std::cerr << "[FATAL] Exception: " << e.what() << "\n";
+        return 1;
+    } catch (...) {
+        std::cerr << "[FATAL] Unknown exception occurred\n";
+        return 1;
+    }
 }

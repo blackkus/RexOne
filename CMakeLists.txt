@@ -84,6 +84,15 @@ endif()
 if(USE_LLAMA)
     target_link_libraries(rexone PRIVATE llama)
     target_include_directories(rexone PRIVATE ${llama_cpp_SOURCE_DIR}/include)
+    
+    # Copy llama DLLs to executable directory on Windows
+    if(WIN32)
+        add_custom_command(TARGET rexone POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_FILE:llama> $<TARGET_FILE_DIR:rexone>
+            COMMENT "Copying llama DLL"
+        )
+    endif()
 endif()
 
 message(STATUS "Build options: USE_LLAMA=${USE_LLAMA}, USE_HNSW=${USE_HNSW}, USE_SQLITE=${USE_SQLITE}")
