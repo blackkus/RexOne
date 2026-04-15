@@ -78,11 +78,29 @@ cmake --build build --config Release
 Example session:
 ```
 RexOne demo REPL. Type 'quit' to exit.
+Commands: autonomous [on|off] | decisions | plan | help
+
 You> Comment fonctionnes-tu?
 RexOne> Je comprends votre question. Voici ma perspective basée sur le contexte. (Streaming llama token par token)
 
+You> autonomous on
+RexOne> Autonomous mode enabled.
+
 You> Tu es rapide!
 RexOne> Merci pour ce message. Je vais traiter votre demande avec attention. (Demo streaming actif)
+
+You> decisions
+RexOne> Decision Audit Log:
+  [2026-04-15 13:45:22] Action: cleanup_old_memories, Outcome: planned, Score: 0.700
+  [2026-04-15 13:45:23] Action: export_backup, Outcome: planned, Score: 0.533
+
+You> help
+RexOne> Commands:
+  quit/exit        - Exit the REPL
+  autonomous on/off - Enable/disable autonomous mode
+  decisions        - Show decision audit log
+  plan             - Show planner info
+  help/?           - Show this help
 
 You> quit
 ```
@@ -237,7 +255,12 @@ This project is a demonstration/educational prototype.
 - **Vector Search**: Cosine similarity O(N) working; production → hnswlib or FAISS for O(log N)
 - **RAG Status**: ✅ Full pipeline working — Q&A pairs embedded, stored, and retrieved by semantic similarity
 - **Tokenizer**: Whitespace-based stub; production should use BPE (SentencePiece, HuggingFace tokenizers)
-- **Persistence**: SQLite integration available via `USE_SQLITE` flag
+- **Persistence**: SQLite integration available via `USE_SQLITE` flag (enables cross-session memory durability)
+- **Autonomy & Planner**: ✅ Decision-making framework in place
+  - Evaluates memory management actions (cleanup, compress, backup) using utility function
+  - Respects symbolic safety constraints (max risk, preserve recent memories)
+  - Audits all decisions with timestamps and reasoning for explainability
+  - Future: extend with RL-based learning and threat detection
 - **Encoding Note**: Character encoding (UTF-8) is preserved; some terminal output may show encoding artifacts
 
 ---
