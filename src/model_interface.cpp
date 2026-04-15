@@ -7,21 +7,18 @@
 #include <cmath>
 
 ModelInterface::ModelInterface() {
-    // If a local llama backend is available, initialize it (model path configurable later)
-#ifdef USE_LLAMA
-    // llama_init may be a no-op placeholder; real integration should pass a real model path
-    (void)llama_init("models/ggml-model.bin");
-#endif
+    // Initialize global llama backend if available
+    // In a real deployment, pass actual model path here
+    (void)init_global_llama("models/gguf-model.bin");
 }
 
 std::string ModelInterface::generate(const std::string &prompt, int maxTokens) {
-#ifdef USE_LLAMA
-    // Delegate to llama backend when available
-    std::string out = llama_generate(prompt, maxTokens);
-    if (!out.empty()) return out;
-    // fallback to demo below
-#endif
-    // Demo fallback: short deterministic reply
+    // Use llama backend with streaming disabled
+    if (g_llama_backend.is_initialized()) {
+        return g_llama_backend.generate_blocking(prompt, maxTokens);
+    }
+    
+    // Fallback: simple demo response
     std::string reply = "RexOne (demo): ";
     if (prompt.empty()) reply += "(no prompt)";
     else {
@@ -30,6 +27,16 @@ std::string ModelInterface::generate(const std::string &prompt, int maxTokens) {
     }
     if ((int)reply.size() > maxTokens) reply = reply.substr(0, maxTokens);
     return reply;
+}
+
+std::string ModelInterface::generate_streaming(const std::string &prompt, int maxTokens, TokenCallback callback) {
+    // Use llama backend with streaming callback
+    if (g_llama_backend.is_initialized()) {
+        return g_llama_backend.generate(prompt, maxTokens, callback);
+    }
+    
+    // Fallback: non-streaming demo
+    return generate(prompt, maxTokens);
 }
 
 std::vector<float> ModelInterface::embed(const std::string &text) {

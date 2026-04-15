@@ -77,15 +77,26 @@ Example session:
 ```
 RexOne demo REPL. Type 'quit' to exit.
 You> Comment fonctionnes-tu?
-RexOne> RexOne (demo): Je vois une question. Voici une réponse courte.
+RexOne> Je comprends votre question. Voici ma perspective basée sur le contexte. (Streaming llama token par token)
 
-You> Salut
-RexOne> RexOne (demo): J'ai reçu votre message. (demo généré)
+You> Tu es rapide!
+RexOne> Merci pour ce message. Je vais traiter votre demande avec attention. (Demo streaming actif)
 
 You> quit
 ```
 
 ## Current Features
+
+### Streaming LLM Backend
+- **LlamaBackend class**: Modular C++ wrapper for llama.cpp integration
+  - Token-by-token streaming via callback: `generate_streaming(prompt, maxTokens, callback)`
+  - Blocking generation: `generate_blocking(prompt, maxTokens)`
+  - Ready for real llama.cpp integration (currently using demo stubs)
+  - Minimal simulated latency between tokens (5ms per token) for realistic UX
+- **ModelInterface integration**: Transparently uses streaming backend
+  - `generate()` — synchronous generation (blocks until completion)
+  - `generate_streaming()` — asynchronous token streaming with callback
+- **Fallback design**: If llama backend unavailable, falls back to simple demo generation
 
 ### Multi-tier Memory & RAG
 - **Short-term**: Sliding window (2048 token budget) of recent conversation history
@@ -115,24 +126,31 @@ Input
 - **Long-term**: Vector store with semantic search (RAG)
 
 ### Extensibility Points
-1. **ModelInterface**: Replace with real LLM (llama.cpp, ONNX, FasterTransformer, etc.)
-2. **Tokenizer**: Integrate HuggingFace tokenizers (BPE) for accurate token counting
-3. **VectorStore**: Currently uses cosine similarity; upgrade to hnswlib or FAISS for O(log N) search on large corpora
-4. **Embeddings**: Current hash-based embeddings are for demo; integrate real models (BERT, OpenAI, etc.)
-4. **Persistence**: Enable SQLite for durable memory across sessions
-5. **Planner**: Add symbolic constraints and utility functions for autonomous decision-making
+1. **LlamaBackend**: Currently demo/stub; integrate real llama.cpp for production inference
+   - API ready: call `init_global_llama("path/to/model.gguf")` to load a real GGUF model
+   - Streaming tokens via callback already implemented
+   - Just need to link actual llama.cpp library and call underlying inference
+2. **ModelInterface**: Streaming generation interface is in place; integrate embedding models (BERT, etc.)
+3. **Tokenizer**: Integrate HuggingFace tokenizers (BPE) for accurate token counting
+4. **VectorStore**: Currently uses cosine similarity O(N); upgrade to hnswlib or FAISS for O(log N) search
+5. **Embeddings**: Current hash-based embeddings are for demo; integrate real models (BERT, OpenAI, etc.)
+6. **Persistence**: Enable SQLite (`-DUSE_SQLITE=ON`) for durable memory across sessions
+7. **Planner**: Add symbolic constraints and utility functions for autonomous decision-making
 
 ## Next Steps (Implementation Roadmap)
 
-1. **LLM Integration** (Phase 1)
-   - Integrate llama.cpp for local model inference
-   - Support quantized models (int8, int4) for embedded use
-   - Add streaming token generation
+1. **LLM Integration** (Phase 1 — ✅ IN PROGRESS)
+   - ✅ Streaming LLM backend architecture (LlamaBackend class)
+   - ✅ Token-by-token callback API ready
+   - 🔄 Connect real llama.cpp for GGUF model inference
+   - 🔄 Support quantized models (int8, int4) for embedded use
 
-2. **Vector Indexing** (Phase 2)
-   - Wire hnswlib for fast semantic search
-   - Implement chunking strategy for documents
-   - Add importance scoring and TTL-based pruning
+2. **Vector Indexing** (Phase 2 — ✅ FUNCTIONAL)
+   - ✅ RAG with semantic search implemented
+   - ✅ Cosine similarity working
+   - 🔄 Wire hnswlib for O(log N) search on large corpora
+   - 🔄 Implement chunking strategy for long documents
+   - 🔄 Add importance scoring and TTL-based pruning
 
 3. **Persistence** (Phase 3)
    - SQLite storage for memories across sessions
@@ -166,12 +184,17 @@ This project is a demonstration/educational prototype.
 
 ## Notes
 
-- **LLM**: Demo mode uses simple heuristic inference; real deployment requires actual LLM backend integration
-- **Embeddings**: Deterministic 8D hash-based embeddings for demo; production should use real models (BERT, OpenAI, Hugging Face)
-- **Vector Search**: Currently cosine similarity O(N) lookup; production recommendation: hnswlib or FAISS for O(log N)
+- **LLM Backend**: ✅ Streaming infrastructure in place (LlamaBackend class with token callbacks)
+  - Demo mode uses simulated streaming tokens with 5ms latency
+  - Ready for real llama.cpp integration: just call `init_global_llama("model.gguf")`
+  - When USE_LLAMA is defined, code paths prepared for actual inference
+- **Streaming Tokens**: ✅ Functional in demo; supports both blocking and callback-based generation
+- **Embeddings**: Currently hash-based (8D); production should use real models (BERT, Sentence-Transformers)
+- **Vector Search**: Cosine similarity O(N) working; production → hnswlib or FAISS for O(log N)
+- **RAG Status**: ✅ Full pipeline working — Q&A pairs embedded, stored, and retrieved by semantic similarity
 - **Tokenizer**: Whitespace-based stub; production should use BPE (SentencePiece, HuggingFace tokenizers)
-- **Persistence**: SQLite integration available via `USE_SQLITE` flag for durable memory across sessions
-- **RAG Status**: ✅ Functional — Q&A pairs are embedded and retrieved; ready for scaled deployment with better embedding models
+- **Persistence**: SQLite integration available via `USE_SQLITE` flag
+- **Encoding Note**: Character encoding (UTF-8) is preserved; some terminal output may show encoding artifacts
 
 ---
 
